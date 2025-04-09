@@ -1,0 +1,110 @@
+#include <stdio.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+#define MAX 5 
+
+sem_t forks[MAX]; 
+int hungry[MAX]; 
+
+void dine_one(int id) {
+    printf("P %d is waiting\n", id + 1);
+
+    sem_wait(&forks[id]); 
+    sem_wait(&forks[(id + 1) % MAX]);
+
+    printf("P %d is granted to eat using forks %d and %d\n", id + 1, id + 1, (id + 1) % MAX + 1);
+    sleep(2); 
+    printf("P %d has finished eating\n", id + 1);
+
+    
+    sem_post(&forks[id]);
+    sem_post(&forks[(id + 1) % MAX]);
+}
+
+void dine_two(int ids[], int size) {
+    for (int i = 0; i < size; i++) {
+        printf("P %d is waiting\n", ids[i] + 1);
+    }
+
+    for (int i = 0; i < size; i++) {
+        sem_wait(&forks[ids[i]]);
+        sem_wait(&forks[(ids[i] + 1) % MAX]);
+    }
+
+    for (int i = 0; i < size; i++) {
+        printf("P %d is granted to eat using forks %d and %d\n", ids[i] + 1, ids[i] + 1, (ids[i] + 1) % MAX + 1);
+    }
+    sleep(2);
+
+    for (int i = 0; i < size; i++) {
+        printf("P %d has finished eating\n", ids[i] + 1);
+    }
+
+    for (int i = 0; i < size; i++) {
+        sem_post(&forks[ids[i]]);
+        sem_post(&forks[(ids[i] + 1) % MAX]);
+    }
+}
+
+int main() {
+    int totalPhilosophers, numHungry, choice;
+    int hungryPositions[MAX];
+    int i;
+
+    for (i = 0; i < MAX; i++) {
+        sem_init(&forks[i], 0, 1);
+    }
+
+    printf("Enter the total number of philosophers: ");
+    scanf("%d", &totalPhilosophers);
+    if (totalPhilosophers > MAX || totalPhilosophers <= 0) {
+        printf("Invalid number of philosophers. Must be between 1 and %d.\n", MAX);
+        return 1;
+    }
+
+    printf("How many are hungry: ");
+    scanf("%d", &numHungry);
+    if (numHungry > totalPhilosophers || numHungry <= 0) {
+        printf("Invalid number of hungry philosophers.\n");
+        return 1;
+    }
+
+    for (i = 0; i < numHungry; i++) {
+        printf("Enter philosopher %d position (1 to %d): ", i + 1, totalPhilosophers);
+        scanf("%d", &hungryPositions[i]);
+        if (hungryPositions[i] < 1 || hungryPositions[i] > totalPhilosophers) {
+            printf("Invalid philosopher position. Must be between 1 and %d.\n", totalPhilosophers);
+            return 1;
+        }
+        hungryPositions[i]--;
+    }
+
+    do {
+        printf("1. One can eat at a time\n");
+        printf("2. Two can eat at a time\n");
+        printf("3. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        if (choice == 1) {
+            printf("Allow one philosopher to eat at any time\n");
+            for (i = 0; i < numHungry; i++) {
+                dine_one(hungryPositions[i]);
+            }
+        } else if (choice == 2) {
+            printf("Allow two philosophers to eat at any time\n");
+            int pair[2] = {hungryPositions[0], hungryPositions[1]}; 
+            dine_two(pair, 2);
+            for (i = 2; i < numHungry; i++) {
+                dine_one(hungryPositions[i]);
+            }
+        }
+    } while (choice != 3);
+
+    for (i = 0; i < MAX; i++) {
+        sem_destroy(&forks[i]);
+    }
+
+    return 0;
+}
